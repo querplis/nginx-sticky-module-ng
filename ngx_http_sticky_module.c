@@ -27,6 +27,7 @@ typedef struct {
 	ngx_str_t                     cookie_name;
 	ngx_str_t                     cookie_domain;
 	ngx_str_t                     cookie_path;
+	ngx_str_t					  cookie_sameSite;	
 	time_t                        cookie_expires;
 	unsigned                      cookie_secure:1;
 	unsigned                      cookie_httponly:1;
@@ -370,7 +371,7 @@ static ngx_int_t ngx_http_get_sticky_peer(ngx_peer_connection_t *pc, void *data)
 
 			if (iphp->rrp.peers->peer[i].sockaddr == pc->sockaddr && iphp->rrp.peers->peer[i].socklen == pc->socklen) {
 				if (conf->hash || conf->hmac || conf->text) {
-					ngx_http_sticky_misc_set_cookie(iphp->request, &conf->cookie_name, &conf->peers[i].digest, &conf->cookie_domain, &conf->cookie_path, conf->cookie_expires, conf->cookie_secure, conf->cookie_httponly);
+					ngx_http_sticky_misc_set_cookie(iphp->request, &conf->cookie_name, &conf->peers[i].digest, &conf->cookie_domain, &conf->cookie_path, &conf->cookie_sameSite, conf->cookie_expires, conf->cookie_secure, conf->cookie_httponly);
 					ngx_log_debug(NGX_LOG_DEBUG_HTTP, pc->log, 0, "[sticky/get_sticky_peer] set cookie \"%V\" value=\"%V\" index=%ui", &conf->cookie_name, &conf->peers[i].digest, i);
 				} else {
 					ngx_str_t route;
@@ -385,7 +386,7 @@ static ngx_int_t ngx_http_get_sticky_peer(ngx_peer_connection_t *pc, void *data)
 					}
 					ngx_snprintf(route.data, route.len, "%d", i);
 					route.len = ngx_strlen(route.data);
-					ngx_http_sticky_misc_set_cookie(iphp->request, &conf->cookie_name, &route, &conf->cookie_domain, &conf->cookie_path, conf->cookie_expires, conf->cookie_secure, conf->cookie_httponly);
+					ngx_http_sticky_misc_set_cookie(iphp->request, &conf->cookie_name, &route, &conf->cookie_domain, &conf->cookie_path, &conf->cookie_sameSite, conf->cookie_expires, conf->cookie_secure, conf->cookie_httponly);
 					ngx_log_debug(NGX_LOG_DEBUG_HTTP, pc->log, 0, "[sticky/get_sticky_peer] set cookie \"%V\" value=\"%V\" index=%ui", &conf->cookie_name, &tmp, i);
 				}
 				break; /* found and hopefully the cookie have been set */
@@ -411,6 +412,7 @@ static char *ngx_http_sticky_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 	ngx_str_t name = ngx_string("route");
 	ngx_str_t domain = ngx_string("");
 	ngx_str_t path = ngx_string("/");
+	ngx_str_t sameSite = ngx_string("none");
 	ngx_str_t hmac_key = ngx_string("");
 	time_t expires = NGX_CONF_UNSET;
 	unsigned secure = 0;
@@ -490,7 +492,19 @@ static char *ngx_http_sticky_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 			}
 			continue;
 		}
+		/* is "sameSite=" is starting the argument ? */
+		if ((u_char *)ngx_strstr(value[i].data, "sameSite=") == value[i].data) {
 
+			/* do we have at least one char after "sameSite=" ? */
+			if (value[i].len <= sizeof("sameSite=") -1 ) {
+				ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "a value must be provided to \"sameSite=\"");
+				return NGX_CONF_ERROR;
+			}
+			/* extract value */
+			sameSite.len = value[i].len - ngx_strlen("sameSite=");
+			sameSite.data = (u_char *)(value[i].data + sizeof("sameSite=") - 1);
+			continue;
+		}
 		if (ngx_strncmp(value[i].data, "secure", 6) == 0 && value[i].len == 6) {
 			secure = 1;
 			continue;
@@ -672,6 +686,7 @@ static char *ngx_http_sticky_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 	sticky_conf->cookie_expires = expires;
 	sticky_conf->cookie_secure = secure;
 	sticky_conf->cookie_httponly = httponly;
+	sticky_conf->cookie_sameSite = sameSite;
 	sticky_conf->hash = hash;
 	sticky_conf->hmac = hmac;
 	sticky_conf->text = text;

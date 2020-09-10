@@ -10,6 +10,11 @@
 #include <ngx_md5.h>
 #include <ngx_sha1.h>
 
+#ifndef SHA_DIGEST_LENGTH
+#include <openssl/sha.h>
+#endif
+
+
 #include "ngx_http_sticky_misc.h"
 
 #ifndef ngx_str_set
@@ -35,7 +40,7 @@ static ngx_int_t cookie_expires(char *str, size_t size, time_t t)
 }
 
 
-ngx_int_t ngx_http_sticky_misc_set_cookie(ngx_http_request_t *r, ngx_str_t *name, ngx_str_t *value, ngx_str_t *domain, ngx_str_t *path, time_t expires, unsigned secure, unsigned httponly)
+ngx_int_t ngx_http_sticky_misc_set_cookie(ngx_http_request_t *r, ngx_str_t *name, ngx_str_t *value, ngx_str_t *domain, ngx_str_t *path, ngx_str_t *sameSite, time_t expires, unsigned secure, unsigned httponly)
 {
   u_char  *cookie, *p;
   size_t  len;
@@ -70,6 +75,10 @@ ngx_int_t ngx_http_sticky_misc_set_cookie(ngx_http_request_t *r, ngx_str_t *name
     len += sizeof("; Path=") - 1 + path->len;
   }
 
+  /* ; sameSite= */
+  if (sameSite->len > 0) {
+    len += sizeof("; sameSite=") - 1 + sameSite->len;
+  }
   /* ; Secure */
   if (secure) {
     len += sizeof("; Secure") - 1;
@@ -104,6 +113,10 @@ ngx_int_t ngx_http_sticky_misc_set_cookie(ngx_http_request_t *r, ngx_str_t *name
     p = ngx_copy(p, path->data, path->len);
   }
 
+  if (sameSite->len > 0){
+    p = ngx_copy(p, "; sameSite=", sizeof("; sameSite=") - 1);
+    p = ngx_copy(p, sameSite->data, sameSite->len);
+  }
   if (secure) {
     p = ngx_copy(p, "; Secure", sizeof("; Secure") - 1);
   }
