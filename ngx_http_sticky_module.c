@@ -27,7 +27,7 @@ typedef struct {
 	ngx_str_t                     cookie_name;
 	ngx_str_t                     cookie_domain;
 	ngx_str_t                     cookie_path;
-	ngx_str_t					  cookie_sameSite;	
+	ngx_str_t                     cookie_sameSite;
 	time_t                        cookie_expires;
 	unsigned                      cookie_secure:1;
 	unsigned                      cookie_httponly:1;
@@ -412,7 +412,7 @@ static char *ngx_http_sticky_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 	ngx_str_t name = ngx_string("route");
 	ngx_str_t domain = ngx_string("");
 	ngx_str_t path = ngx_string("/");
-	ngx_str_t sameSite = ngx_string("none");
+	ngx_str_t sameSite = ngx_string("Lax");
 	ngx_str_t hmac_key = ngx_string("");
 	time_t expires = NGX_CONF_UNSET;
 	unsigned secure = 0;
